@@ -4,11 +4,11 @@
   "description": "Privacy-preserving local CLI failure triage bundle generator.",
   "type": "module",
   "bin": {
-    "crashcart": "./dist/cli.js"
+    "crashcart": "./dist/src/cli.js"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/src/index.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/src/index.js"
   },
   "files": [
     "dist",
@@ -22,7 +22,7 @@
     "check": "tsc --noEmit",
     "pretest": "npm run build",
     "test": "node --test dist/tests/*.test.js",
-    "smoke": "npm run build && (node dist/cli.js run --out .crashcart/smoke -- node fixtures/failing-command.js || test $? -eq 1) && node dist/cli.js inspect .crashcart/smoke/crashcart.json",
+    "smoke": "npm run build && (node dist/src/cli.js run --out .crashcart/smoke -- node fixtures/failing-command.js || test $? -eq 1) && node dist/src/cli.js inspect .crashcart/smoke/crashcart.json",
     "package:smoke": "npm pack --dry-run",
     "release:check": "npm test && npm run check && npm run build && npm run smoke && npm run package:smoke"
   },
