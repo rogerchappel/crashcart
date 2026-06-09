@@ -58,3 +58,8 @@ Use the package scripts as the public smoke gates before publishing or changing 
 ## License
 
 MIT
+
+Release verification scripts not already covered above:
+
+- `npm run build` - tsc
+- `npm run package:smoke` - npm pack --dry-run
