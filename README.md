@@ -47,6 +47,7 @@ CLI behavior:
 ```sh
 npm run check
 npm test
+npm run build
 npm run smoke
 npm run package:smoke
 npm run release:check
@@ -76,8 +77,3 @@ private tokens, proprietary logs, or private bundle contents into public issues.
 ## License
 
 MIT
-
-Release verification scripts not already covered above:
-
-- `npm run build` - tsc
-- `npm run package:smoke` - npm pack --dry-run
