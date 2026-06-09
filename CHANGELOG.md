@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Release readiness: document local verification, npm package metadata, and pack contents for the next public release.
+
 All notable changes to this project will be documented in this file.
 
 This project follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
