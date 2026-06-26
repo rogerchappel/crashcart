@@ -39,6 +39,17 @@ Redact an existing log with the maintained fixture rules:
 node dist/src/cli.js redact fixtures/raw.log --patterns fixtures/crashcart.config.json
 ```
 
+Run the reproducible triage bundle demo:
+
+```sh
+bash demo/run-triage-bundle.sh
+```
+
+The demo builds the CLI, captures the checked-in failing fixture, inspects the
+generated bundle, redacts the sample log, and verifies the expected artifacts.
+A short recording outline is available in
+[docs/promo/triage-bundle-demo.md](docs/promo/triage-bundle-demo.md).
+
 ## Verification
 
 Use the package scripts as the public release gates before publishing or changing
