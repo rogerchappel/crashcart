@@ -26,7 +26,8 @@
     "test": "node --test dist/tests/*.test.js",
     "smoke": "npm run build && (node dist/src/cli.js run --out .crashcart/smoke -- node fixtures/failing-command.js || test $? -eq 1) && node dist/src/cli.js inspect .crashcart/smoke/crashcart.json",
     "package:smoke": "npm run build && test -f dist/src/cli.js && test -f dist/src/index.js && npm pack --dry-run",
-    "release:check": "npm test && npm run check && npm run build && npm run smoke && npm run package:smoke"
+    "release:check": "npm test && npm run check && npm run build && npm run smoke && npm run package:smoke",
+    "lint": "npm run check"
   },
   "keywords": [
     "cli",
