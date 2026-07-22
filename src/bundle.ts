@@ -4,7 +4,17 @@ import { classifyFailure } from "./classifier.js";
 import { getToolVersions } from "./env.js";
 import { getGitSummary } from "./git.js";
 import { loadRedactionRules, redactText } from "./redact.js";
-import type { CapturedCommand, CrashcartBundle, RunOptions } from "./types.js";
+import type { CapturedCommand, CrashcartBundle, RedactionFinding, RunOptions } from "./types.js";
+
+function mergeFindings(...groups: RedactionFinding[][]): RedactionFinding[] {
+  const counts = new Map<string, number>();
+  for (const group of groups) {
+    for (const finding of group) {
+      counts.set(finding.label, (counts.get(finding.label) ?? 0) + finding.count);
+    }
+  }
+  return [...counts.entries()].map(([label, count]) => ({ label, count }));
+}
 
 export function truncateMiddle(input: string, maxBytes: number): { text: string; truncated: boolean } {
   const bytes = Buffer.byteLength(input, "utf8");
@@ -22,15 +32,28 @@ export async function createBundle(captured: CapturedCommand, options: RunOption
   const redactedCombined = redactText(combinedRaw, extraRules);
   const redactedStdout = redactText(captured.stdout, extraRules);
   const redactedStderr = redactText(captured.stderr, extraRules);
+  const redactedArgv = captured.command.map((argument) => redactText(argument, extraRules));
+  const redactedCwd = redactText(captured.cwd, extraRules);
+  const git = await getGitSummary(captured.cwd);
+  const redactedGitFields = [git.branch, git.commit, git.status, git.error].map((field) =>
+    field === undefined ? undefined : redactText(field, extraRules)
+  );
+  const redactedGit = {
+    ...git,
+    branch: redactedGitFields[0]?.text,
+    commit: redactedGitFields[1]?.text,
+    status: redactedGitFields[2]?.text,
+    error: redactedGitFields[3]?.text
+  };
   const truncated = truncateMiddle(redactedCombined.text, options.maxBytes);
 
   return {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
     command: {
-      argv: captured.command,
-      display: captured.command.join(" "),
-      cwd: captured.cwd,
+      argv: redactedArgv.map((argument) => argument.text),
+      display: redactedArgv.map((argument) => argument.text).join(" "),
+      cwd: redactedCwd.text,
       exitCode: captured.exitCode,
       signal: captured.signal,
       durationMs: captured.durationMs
@@ -40,7 +63,7 @@ export async function createBundle(captured: CapturedCommand, options: RunOption
       arch: process.arch,
       node: process.version,
       tools: await getToolVersions(),
-      git: await getGitSummary(captured.cwd)
+      git: redactedGit
     },
     logs: {
       stdout: truncateMiddle(redactedStdout.text, options.maxBytes).text,
@@ -49,7 +72,12 @@ export async function createBundle(captured: CapturedCommand, options: RunOption
       truncated: truncated.truncated,
       maxBytes: options.maxBytes
     },
-    redactions: redactedCombined.findings,
+    redactions: mergeFindings(
+      redactedCombined.findings,
+      ...redactedArgv.map((argument) => argument.findings),
+      redactedCwd.findings,
+      redactedGitFields.flatMap((field) => field?.findings ?? [])
+    ),
     classification: classifyFailure(redactedCombined.text)
   };
 }
