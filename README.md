@@ -41,6 +41,12 @@ Capture a command that exits non-zero and write the bundle under `.crashcart/`:
 node dist/src/cli.js run --out .crashcart/demo -- node fixtures/failing-command.js
 ```
 
+`--max-bytes` accepts safe integers of at least 42 (the size of the truncation
+marker) and defaults to 120000. The cap applies to each stored stdout, stderr,
+and combined log field. `--timeout-ms` accepts safe integers of at least 1 and
+defaults to 600000. Invalid or missing values are rejected before the captured
+command runs or an output directory is created.
+
 Inspect the generated bundle without re-running the failing command:
 
 ```sh
