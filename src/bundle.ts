@@ -6,6 +6,9 @@ import { getGitSummary } from "./git.js";
 import { loadRedactionRules, redactText } from "./redact.js";
 import type { CapturedCommand, CrashcartBundle, RedactionFinding, RunOptions } from "./types.js";
 
+export const TRUNCATION_MARKER = "\n[... crashcart truncated log output ...]\n";
+export const MIN_MAX_BYTES = Buffer.byteLength(TRUNCATION_MARKER, "utf8");
+
 function mergeFindings(...groups: RedactionFinding[][]): RedactionFinding[] {
   const counts = new Map<string, number>();
   for (const group of groups) {
@@ -19,11 +22,23 @@ function mergeFindings(...groups: RedactionFinding[][]): RedactionFinding[] {
 export function truncateMiddle(input: string, maxBytes: number): { text: string; truncated: boolean } {
   const bytes = Buffer.byteLength(input, "utf8");
   if (bytes <= maxBytes) return { text: input, truncated: false };
-  const marker = "\n[... crashcart truncated log output ...]\n";
-  const half = Math.floor((maxBytes - Buffer.byteLength(marker)) / 2);
-  const start = Buffer.from(input).subarray(0, half).toString("utf8");
-  const end = Buffer.from(input).subarray(bytes - half).toString("utf8");
-  return { text: start + marker + end, truncated: true };
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < MIN_MAX_BYTES) {
+    throw new RangeError(`maxBytes must be an integer of at least ${MIN_MAX_BYTES}`);
+  }
+  const half = Math.floor((maxBytes - MIN_MAX_BYTES) / 2);
+  const buffer = Buffer.from(input);
+  let startBytes = half;
+  let endBytes = half;
+  let text: string;
+  do {
+    const start = buffer.subarray(0, startBytes).toString("utf8");
+    const end = buffer.subarray(bytes - endBytes).toString("utf8");
+    text = start + TRUNCATION_MARKER + end;
+    if (Buffer.byteLength(text, "utf8") <= maxBytes) break;
+    if (startBytes >= endBytes && startBytes > 0) startBytes -= 1;
+    else if (endBytes > 0) endBytes -= 1;
+  } while (startBytes > 0 || endBytes > 0);
+  return { text, truncated: true };
 }
 
 export async function createBundle(captured: CapturedCommand, options: RunOptions): Promise<CrashcartBundle> {
