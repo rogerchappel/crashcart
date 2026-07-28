@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createBundle, renderMarkdown, truncateMiddle, writeBundle } from "../src/bundle.js";
+import { createBundle, MIN_MAX_BYTES, renderMarkdown, truncateMiddle, writeBundle } from "../src/bundle.js";
 import type { CapturedCommand } from "../src/types.js";
 
 const captured: CapturedCommand = {
@@ -73,4 +73,21 @@ test("truncates long logs", () => {
   const result = truncateMiddle("a".repeat(200), 80);
   assert.equal(result.truncated, true);
   assert.match(result.text, /truncated/);
+  assert.ok(Buffer.byteLength(result.text) <= 80);
+});
+
+test("uses the truncation marker as the minimum byte cap", () => {
+  const result = truncateMiddle("a".repeat(200), MIN_MAX_BYTES);
+  assert.equal(result.truncated, true);
+  assert.equal(Buffer.byteLength(result.text), MIN_MAX_BYTES);
+  assert.throws(() => truncateMiddle("a".repeat(200), MIN_MAX_BYTES - 1), {
+    name: "RangeError",
+    message: `maxBytes must be an integer of at least ${MIN_MAX_BYTES}`
+  });
+});
+
+test("keeps multibyte truncation within the byte cap", () => {
+  const result = truncateMiddle("🙂".repeat(100), 81);
+  assert.equal(result.truncated, true);
+  assert.ok(Buffer.byteLength(result.text) <= 81);
 });

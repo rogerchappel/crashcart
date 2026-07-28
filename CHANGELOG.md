@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Release readiness: document local verification, npm package metadata, and pack contents for the next public release.
+- Reject invalid numeric capture options and enforce configured log byte caps.
 
 All notable changes to this project will be documented in this file.
 

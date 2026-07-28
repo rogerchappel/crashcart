@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createBundle, writeBundle } from "./bundle.js";
+import { createBundle, MIN_MAX_BYTES, writeBundle } from "./bundle.js";
 import { captureCommand } from "./capture.js";
 import { loadRedactionRules, redactText } from "./redact.js";
 import type { CrashcartBundle } from "./types.js";
@@ -19,10 +19,20 @@ function usage(): string {
   return `crashcart
 
 Usage:
-  crashcart run [--out DIR] [--max-bytes N] [--timeout-ms N] [--patterns FILE] -- <command>
+  crashcart run [--out DIR] [--max-bytes N>=${MIN_MAX_BYTES}] [--timeout-ms N>=1] [--patterns FILE] -- <command>
   crashcart inspect <bundle.json>
   crashcart redact <file> [--patterns FILE] [--out FILE]
 `;
+}
+
+function integerOption(args: string[], flag: string, defaultValue: number, minimum: number): number {
+  if (!hasFlag(args, flag)) return defaultValue;
+  const raw = valueAfter(args, flag);
+  const value = raw === undefined ? Number.NaN : Number(raw);
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new Error(`${flag} must be an integer of at least ${minimum}`);
+  }
+  return value;
 }
 
 async function runCommand(args: string[]): Promise<number> {
@@ -31,8 +41,8 @@ async function runCommand(args: string[]): Promise<number> {
   const optionArgs = args.slice(0, separator);
   const command = args.slice(separator + 1);
   const outDir = resolve(valueAfter(optionArgs, "--out") ?? ".crashcart/latest");
-  const maxBytes = Number(valueAfter(optionArgs, "--max-bytes") ?? "120000");
-  const timeoutMs = Number(valueAfter(optionArgs, "--timeout-ms") ?? "600000");
+  const maxBytes = integerOption(optionArgs, "--max-bytes", 120000, MIN_MAX_BYTES);
+  const timeoutMs = integerOption(optionArgs, "--timeout-ms", 600000, 1);
   const patternFile = valueAfter(optionArgs, "--patterns");
   const captured = await captureCommand(command, process.cwd(), timeoutMs);
   const bundle = await createBundle(captured, {
