@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import type { CapturedCommand } from "./types.js";
 
+const TERMINATION_GRACE_MS = 250;
+
 export async function captureCommand(argv: string[], cwd: string, timeoutMs: number): Promise<CapturedCommand> {
   if (argv.length === 0) {
     throw new Error("No command provided after --");
@@ -20,10 +22,14 @@ export async function captureCommand(argv: string[], cwd: string, timeoutMs: num
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let escalationTimer: NodeJS.Timeout | undefined;
 
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
+      escalationTimer = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, TERMINATION_GRACE_MS);
     }, timeoutMs);
 
     child.stdout.setEncoding("utf8");
@@ -37,8 +43,9 @@ export async function captureCommand(argv: string[], cwd: string, timeoutMs: num
     child.on("error", reject);
     child.on("close", (exitCode, signal) => {
       clearTimeout(timer);
+      if (escalationTimer) clearTimeout(escalationTimer);
       if (timedOut) {
-        stderr += `\ncrashcart: command timed out after ${timeoutMs}ms\n`;
+        stderr += `\ncrashcart: command timed out after ${timeoutMs}ms; sent SIGTERM and escalated to SIGKILL after ${TERMINATION_GRACE_MS}ms if still running\n`;
       }
       const finishedAtMs = Date.now();
       resolve({
