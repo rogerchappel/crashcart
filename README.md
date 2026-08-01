@@ -45,7 +45,10 @@ node dist/src/cli.js run --out .crashcart/demo -- node fixtures/failing-command.
 marker) and defaults to 120000. The cap applies to each stored stdout, stderr,
 and combined log field. `--timeout-ms` accepts safe integers of at least 1 and
 defaults to 600000. Invalid or missing values are rejected before the captured
-command runs or an output directory is created.
+command runs or an output directory is created. When the timeout expires,
+crashcart sends `SIGTERM`, waits 250ms for a graceful exit, then sends `SIGKILL`
+if the command is still running. It records the timeout in the bundle and exits
+nonzero.
 
 Inspect the generated bundle without re-running the failing command:
 
