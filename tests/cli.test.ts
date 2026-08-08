@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { MIN_MAX_BYTES } from "../src/bundle.js";
+import type { CrashcartBundle } from "../src/types.js";
 
 const cli = join(process.cwd(), "dist/src/cli.js");
 
@@ -55,4 +56,41 @@ test("accepts valid custom numeric options and honors the byte cap", async (t) =
   };
   assert.equal(bundle.logs.maxBytes, MIN_MAX_BYTES);
   assert.ok(Buffer.byteLength(bundle.logs.combined) <= MIN_MAX_BYTES);
+});
+
+test("writes a classified bundle when the executable is missing", async (t) => {
+  const tempDir = await mkdtemp(join(tmpdir(), "crashcart-cli-spawn-"));
+  t.after(() => rm(tempDir, { recursive: true, force: true }));
+  const outDir = join(tempDir, "out");
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      cli,
+      "run",
+      "--out",
+      outDir,
+      "--timeout-ms",
+      "60000",
+      "--",
+      "definitely-not-a-real-command-crashcart-cli-test"
+    ],
+    { cwd: process.cwd(), encoding: "utf8", timeout: 5_000 }
+  );
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 127);
+  assert.match(result.stdout, /Crashcart wrote .*crashcart\.json/);
+  assert.match(result.stdout, /Likely: missing-binary/);
+
+  const json = await readFile(join(outDir, "crashcart.json"), "utf8");
+  const markdown = await readFile(join(outDir, "crashcart.md"), "utf8");
+  const bundle = JSON.parse(json) as CrashcartBundle;
+  assert.equal(bundle.command.exitCode, 127);
+  assert.equal(bundle.command.signal, null);
+  assert.equal(bundle.classification.class, "missing-binary");
+  assert.match(bundle.logs.stderr, /failed to spawn command/i);
+  assert.match(bundle.logs.stderr, /ENOENT/);
+  assert.match(markdown, /Likely class: missing-binary/);
+  assert.match(markdown, /failed to spawn command/i);
 });

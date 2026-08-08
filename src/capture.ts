@@ -11,7 +11,7 @@ export async function captureCommand(argv: string[], cwd: string, timeoutMs: num
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
 
-  return await new Promise((resolve, reject) => {
+  return await new Promise((resolve) => {
     const child = spawn(argv[0]!, argv.slice(1), {
       cwd,
       env: process.env,
@@ -23,6 +23,23 @@ export async function captureCommand(argv: string[], cwd: string, timeoutMs: num
     let stderr = "";
     let timedOut = false;
     let escalationTimer: NodeJS.Timeout | undefined;
+
+    const finish = (exitCode: number | null, signal: NodeJS.Signals | null): void => {
+      clearTimeout(timer);
+      if (escalationTimer) clearTimeout(escalationTimer);
+      const finishedAtMs = Date.now();
+      resolve({
+        command: argv,
+        cwd,
+        startedAt,
+        finishedAt: new Date(finishedAtMs).toISOString(),
+        durationMs: finishedAtMs - startedAtMs,
+        exitCode,
+        signal,
+        stdout,
+        stderr
+      });
+    };
 
     const timer = setTimeout(() => {
       timedOut = true;
@@ -40,25 +57,15 @@ export async function captureCommand(argv: string[], cwd: string, timeoutMs: num
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      stderr += `crashcart: failed to spawn command: ${error.message}\n`;
+      finish(127, null);
+    });
     child.on("close", (exitCode, signal) => {
-      clearTimeout(timer);
-      if (escalationTimer) clearTimeout(escalationTimer);
       if (timedOut) {
         stderr += `\ncrashcart: command timed out after ${timeoutMs}ms; sent SIGTERM and escalated to SIGKILL after ${TERMINATION_GRACE_MS}ms if still running\n`;
       }
-      const finishedAtMs = Date.now();
-      resolve({
-        command: argv,
-        cwd,
-        startedAt,
-        finishedAt: new Date(finishedAtMs).toISOString(),
-        durationMs: finishedAtMs - startedAtMs,
-        exitCode,
-        signal,
-        stdout,
-        stderr
-      });
+      finish(exitCode, signal);
     });
   });
 }

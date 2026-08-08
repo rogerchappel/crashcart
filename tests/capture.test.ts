@@ -9,6 +9,21 @@ test("captures command output and exit code", async () => {
   assert.match(result.stdout, /fixture stdout/);
 });
 
+test("represents a missing executable as a completed capture", async () => {
+  const result = await captureCommand(
+    ["definitely-not-a-real-command-crashcart-test"],
+    process.cwd(),
+    60_000
+  );
+
+  assert.equal(result.exitCode, 127);
+  assert.equal(result.signal, null);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /failed to spawn command/i);
+  assert.match(result.stderr, /ENOENT/);
+  assert.ok(result.durationMs < 5_000, "spawn failure should clear the long timeout timer");
+});
+
 test("escalates when a timed-out command ignores SIGTERM", async (t) => {
   if (process.platform === "win32") {
     t.skip("POSIX signal behavior is not available on Windows");

@@ -22,6 +22,9 @@ Usage:
   crashcart run [--out DIR] [--max-bytes N>=${MIN_MAX_BYTES}] [--timeout-ms N>=1] [--patterns FILE] -- <command>
   crashcart inspect <bundle.json>
   crashcart redact <file> [--patterns FILE] [--out FILE]
+
+The run command writes a bundle for nonzero exits, signals, timeouts, and commands
+that cannot be spawned (for example, an executable missing from PATH).
 `;
 }
 

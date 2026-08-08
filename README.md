@@ -41,6 +41,11 @@ Capture a command that exits non-zero and write the bundle under `.crashcart/`:
 node dist/src/cli.js run --out .crashcart/demo -- node fixtures/failing-command.js
 ```
 
+Crashcart also writes `crashcart.json` and `crashcart.md` when the requested
+executable cannot be started. The bundle records the spawn error, classifies an
+`ENOENT` failure as `missing-binary`, and the CLI exits nonzero so automation
+still recognizes the failed run.
+
 `--max-bytes` accepts safe integers of at least 42 (the size of the truncation
 marker) and defaults to 120000. The cap applies to each stored stdout, stderr,
 and combined log field. `--timeout-ms` accepts safe integers of at least 1 and
