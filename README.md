@@ -55,6 +55,11 @@ crashcart sends `SIGTERM`, waits 250ms for a graceful exit, then sends `SIGKILL`
 if the command is still running. It records the timeout in the bundle and exits
 nonzero.
 
+Subcommand arguments are strict: unknown or duplicate options, missing option
+values, and extra positional arguments are rejected before crashcart executes a
+child, reads an input or bundle, or writes output. Arguments after the `run`
+separator (`--`) are passed through unchanged to the captured command.
+
 Inspect the generated bundle without re-running the failing command:
 
 ```sh
