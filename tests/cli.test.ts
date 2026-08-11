@@ -9,6 +9,71 @@ import type { CrashcartBundle } from "../src/types.js";
 
 const cli = join(process.cwd(), "dist/src/cli.js");
 
+function invoke(args: string[]) {
+  return spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
+}
+
+test("rejects invalid run grammar before executing the child or writing output", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "crashcart-cli-grammar-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const invalid = [
+    { args: ["--out", "OUT", "--bogus"], diagnostic: "Unknown option: --bogus" },
+    { args: ["--out"], diagnostic: "--out requires a value" },
+    { args: ["--out", "OUT", "--out", "two"], diagnostic: "Duplicate option: --out" },
+    { args: ["--out", "OUT", "surplus"], diagnostic: "Unexpected argument: surplus" }
+  ];
+  for (const [index, testCase] of invalid.entries()) {
+    const outDir = join(root, `out-${index}`);
+    const sentinel = join(root, `child-${index}`);
+    const optionArgs = testCase.args.map((arg) => arg === "OUT" ? outDir : arg);
+    const result = invoke([
+      "run", ...optionArgs, "--",
+      process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(sentinel)}, "ran")`
+    ]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, new RegExp(`^${testCase.diagnostic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    await assert.rejects(access(sentinel));
+    await assert.rejects(access(outDir));
+  }
+});
+
+test("rejects invalid inspect and redact grammar before file IO", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "crashcart-cli-file-grammar-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const missingInput = join(root, "does-not-exist");
+  const outFile = join(root, "redacted.log");
+
+  const invalid = [
+    { args: ["inspect", missingInput, "extra"], diagnostic: "Unexpected argument: extra" },
+    { args: ["inspect", "--bogus"], diagnostic: "Unknown option: --bogus" },
+    { args: ["redact", missingInput, "--bogus", "value"], diagnostic: "Unknown option: --bogus" },
+    { args: ["redact", missingInput, "--out"], diagnostic: "--out requires a value" },
+    { args: ["redact", missingInput, "--out", outFile, "--out", outFile], diagnostic: "Duplicate option: --out" },
+    { args: ["redact", missingInput, "extra"], diagnostic: "Unexpected argument: extra" }
+  ];
+  for (const testCase of invalid) {
+    const result = invoke(testCase.args);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, new RegExp(`^${testCase.diagnostic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    assert.doesNotMatch(result.stderr, /ENOENT/);
+    await assert.rejects(access(outFile));
+  }
+});
+
+test("preserves command arguments after the run separator", async (t) => {
+  const outDir = await mkdtemp(join(tmpdir(), "crashcart-cli-passthrough-"));
+  t.after(() => rm(outDir, { recursive: true, force: true }));
+  const result = invoke([
+    "run", "--out", outDir, "--",
+    process.execPath, "-e", "process.stdout.write(process.argv.slice(1).join('|'))", "--", "--child-option", "value"
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const bundle = JSON.parse(await readFile(join(outDir, "crashcart.json"), "utf8")) as CrashcartBundle;
+  assert.equal(bundle.logs.stdout, "--child-option|value");
+});
+
 test("rejects invalid numeric options before executing the child or writing output", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "crashcart-cli-invalid-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -34,7 +99,10 @@ test("rejects invalid numeric options before executing the child or writing outp
       process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(sentinel)}, "ran")`
     ], { encoding: "utf8" });
     assert.equal(result.status, 1, option.join(" "));
-    assert.match(result.stderr, new RegExp(`^${option[0]} must be an integer of at least `));
+    const diagnostic = option.length === 1
+      ? `${option[0]} requires a value`
+      : `${option[0]} must be an integer of at least `;
+    assert.match(result.stderr, new RegExp(`^${diagnostic}`));
     await assert.rejects(access(sentinel));
     await assert.rejects(access(outDir));
   }
