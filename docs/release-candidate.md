@@ -6,7 +6,8 @@ Use this checklist before publishing a CrashCart package or tagging a release.
 
 - Run `npm run release:check`.
 - Confirm `npm run smoke` still captures a failing command and inspects the generated crashcart receipt.
-- Inspect `npm pack --dry-run` output and confirm it includes `dist`, `README.md`, `LICENSE`, `CHANGELOG.md`, and `SECURITY.md`.
+- Inspect `npm pack --dry-run` output and confirm it includes runtime and library artifacts under `dist/src`, plus `README.md`, `LICENSE`, `CHANGELOG.md`, and `SECURITY.md`.
+- Confirm compiled test artifacts under `dist/tests` are excluded from the package.
 
 ## Evidence
 

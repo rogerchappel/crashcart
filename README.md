@@ -93,7 +93,8 @@ npm run release:check
 ```
 
 `release:check` runs tests, type-checking, the CLI smoke capture, and a dry-run
-`npm pack` so the shipped package contents are visible before release.
+`npm pack` so required runtime files are present and compiled tests are excluded
+before release.
 
 ## Limitations
 
