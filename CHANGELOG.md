@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Validate custom redaction pattern files and report stable file/entry diagnostics for malformed configuration.
 - Exclude compiled test artifacts from npm packages and verify the packed file list during release checks.
 - Release readiness: document local verification, npm package metadata, and pack contents for the next public release.
 - Reject invalid numeric capture options and enforce configured log byte caps.
