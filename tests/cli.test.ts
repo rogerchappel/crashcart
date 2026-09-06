@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -59,6 +59,25 @@ test("rejects invalid inspect and redact grammar before file IO", async (t) => {
     assert.doesNotMatch(result.stderr, /ENOENT/);
     await assert.rejects(access(outFile));
   }
+});
+
+test("reports invalid redaction pattern files without JavaScript runtime diagnostics", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "crashcart-cli-patterns-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const input = join(root, "input.log");
+  const patterns = join(root, "patterns.json");
+  await Promise.all([
+    writeFile(input, "customer cust_123"),
+    writeFile(patterns, '{"redactionPatterns":[null]}')
+  ]);
+
+  const result = invoke(["redact", input, "--patterns", patterns]);
+  assert.equal(result.status, 1);
+  assert.equal(
+    result.stderr.trim(),
+    `Invalid redaction patterns file ${patterns}: redactionPatterns[0] must be an object`
+  );
+  assert.doesNotMatch(result.stderr, /TypeError|Cannot read properties/);
 });
 
 test("preserves command arguments after the run separator", async (t) => {

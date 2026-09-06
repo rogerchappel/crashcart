@@ -72,6 +72,21 @@ Redact an existing log with the maintained fixture rules:
 node dist/src/cli.js redact fixtures/raw.log --patterns fixtures/crashcart.config.json
 ```
 
+The patterns file must contain a JSON object with an optional
+`redactionPatterns` array. Each entry requires non-empty string `label` and
+`pattern` fields and may provide a string `flags` field; omitted flags default
+to `g`. Crashcart validates the complete shape and each regular expression
+before reading or redacting the input log, and reports the file and failing
+entry when configuration is invalid.
+
+```json
+{
+  "redactionPatterns": [
+    { "label": "customer-id", "pattern": "cust_[0-9]+", "flags": "g" }
+  ]
+}
+```
+
 Run the reproducible triage bundle demo:
 
 ```sh
