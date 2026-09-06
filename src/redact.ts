@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { CrashcartConfig, RedactionFinding, RedactionResult } from "./types.js";
+import type { RedactionFinding, RedactionResult } from "./types.js";
 
 export interface RedactionRule {
   label: string;
@@ -34,9 +34,40 @@ export function redactText(input: string, extraRules: RedactionRule[] = []): Red
 
 export async function loadRedactionRules(patternFile?: string): Promise<RedactionRule[]> {
   if (!patternFile) return [];
-  const parsed = JSON.parse(await readFile(patternFile, "utf8")) as CrashcartConfig;
-  return (parsed.redactionPatterns ?? []).map((entry) => ({
-    label: entry.label,
-    pattern: new RegExp(entry.pattern, entry.flags ?? "g")
-  }));
+  const invalid = (message: string): Error => new Error(`Invalid redaction patterns file ${patternFile}: ${message}`);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(patternFile, "utf8"));
+  } catch (error) {
+    throw invalid(`cannot parse JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw invalid("root must be a JSON object");
+  }
+
+  const patterns = (parsed as Record<string, unknown>).redactionPatterns;
+  if (patterns === undefined) return [];
+  if (!Array.isArray(patterns)) throw invalid("redactionPatterns must be an array");
+
+  return patterns.map((value, index) => {
+    const name = `redactionPatterns[${index}]`;
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      throw invalid(`${name} must be an object`);
+    }
+    const entry = value as Record<string, unknown>;
+    if (typeof entry.label !== "string" || entry.label.trim() === "") {
+      throw invalid(`${name}.label must be a non-empty string`);
+    }
+    if (typeof entry.pattern !== "string" || entry.pattern.length === 0) {
+      throw invalid(`${name}.pattern must be a non-empty string`);
+    }
+    if (entry.flags !== undefined && typeof entry.flags !== "string") {
+      throw invalid(`${name}.flags must be a string`);
+    }
+    try {
+      return { label: entry.label, pattern: new RegExp(entry.pattern, entry.flags ?? "g") };
+    } catch {
+      throw invalid(`${name} has invalid regular expression`);
+    }
+  });
 }
