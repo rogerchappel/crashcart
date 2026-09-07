@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { createBundle, MIN_MAX_BYTES, writeBundle } from "./bundle.js";
 import { captureCommand } from "./capture.js";
 import { loadRedactionRules, redactText } from "./redact.js";
-import type { CrashcartBundle } from "./types.js";
+import { validateBundle } from "./validate-bundle.js";
 
 function parseOptions(args: string[], allowed: readonly string[]): Map<string, string> {
   const values = new Map<string, string>();
@@ -73,7 +73,18 @@ async function inspectCommand(args: string[]): Promise<number> {
   if (!bundlePath) throw new Error("inspect requires a crashcart.json path");
   if (args.length > 1) throw new Error(`Unexpected argument: ${args[1]}`);
   if (bundlePath.startsWith("--")) throw new Error(`Unknown option: ${bundlePath}`);
-  const bundle = JSON.parse(await readFile(bundlePath, "utf8")) as CrashcartBundle;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(bundlePath, "utf8"));
+  } catch (error) {
+    throw new Error(`Invalid crashcart bundle ${bundlePath}: ${error instanceof SyntaxError ? "invalid JSON" : String(error)}`);
+  }
+  let bundle;
+  try {
+    bundle = validateBundle(parsed);
+  } catch (error) {
+    throw new Error(`Invalid crashcart bundle ${bundlePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
   console.log(`${bundle.classification.class} (${bundle.classification.confidence})`);
   console.log(bundle.classification.summary);
   for (const check of bundle.classification.nextChecks) {
