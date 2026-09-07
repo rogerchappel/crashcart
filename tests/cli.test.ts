@@ -80,6 +80,61 @@ test("reports invalid redaction pattern files without JavaScript runtime diagnos
   assert.doesNotMatch(result.stderr, /TypeError|Cannot read properties/);
 });
 
+test("reports malformed inspect bundles with stable field diagnostics", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "crashcart-cli-inspect-invalid-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const cases = [
+    { value: {}, field: "schemaVersion must be 1" },
+    { value: { schemaVersion: 2 }, field: "schemaVersion must be 1" },
+    {
+      value: {
+        schemaVersion: 1,
+        generatedAt: "now",
+        command: { argv: [], display: "cmd", cwd: "/tmp", exitCode: 1, signal: null, durationMs: 1 },
+        environment: { platform: "linux", arch: "x64", node: "v22", tools: [], git: { available: false } },
+        logs: { stdout: "", stderr: "", combined: "", truncated: false, maxBytes: 100 },
+        redactions: [],
+        classification: { class: 7, confidence: "high", matched: [], summary: "failed", nextChecks: [] }
+      },
+      field: "classification.class must be a supported failure class"
+    },
+    {
+      value: {
+        schemaVersion: 1,
+        generatedAt: "now",
+        command: { argv: [], display: "cmd", cwd: "/tmp", exitCode: 1, signal: null, durationMs: 1 },
+        environment: { platform: "linux", arch: "x64", node: "v22", tools: [], git: { available: false } },
+        logs: { stdout: "", stderr: "", combined: "", truncated: false, maxBytes: 100 },
+        redactions: [],
+        classification: { class: "unknown", confidence: "high", matched: [], summary: "failed", nextChecks: [null] }
+      },
+      field: "classification.nextChecks[0] must be a string"
+    }
+  ];
+
+  for (const [index, testCase] of cases.entries()) {
+    const bundlePath = join(root, `invalid-${index}.json`);
+    await writeFile(bundlePath, JSON.stringify(testCase.value));
+    const result = invoke(["inspect", bundlePath]);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr.trim(), `Invalid crashcart bundle ${bundlePath}: ${testCase.field}`);
+    assert.doesNotMatch(result.stderr, /TypeError|Cannot read properties/);
+  }
+});
+
+test("inspects a valid generated bundle", async (t) => {
+  const outDir = await mkdtemp(join(tmpdir(), "crashcart-cli-inspect-valid-"));
+  t.after(() => rm(outDir, { recursive: true, force: true }));
+  const run = invoke(["run", "--out", outDir, "--", process.execPath, "-e", "process.exit(1)"]);
+  assert.equal(run.status, 1, run.stderr);
+
+  const bundlePath = join(outDir, "crashcart.json");
+  const inspected = invoke(["inspect", bundlePath]);
+  assert.equal(inspected.status, 0, inspected.stderr);
+  assert.match(inspected.stdout, /^unknown \(/);
+});
+
 test("preserves command arguments after the run separator", async (t) => {
   const outDir = await mkdtemp(join(tmpdir(), "crashcart-cli-passthrough-"));
   t.after(() => rm(outDir, { recursive: true, force: true }));
