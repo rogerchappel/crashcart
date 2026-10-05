@@ -9,6 +9,19 @@ test("captures command output and exit code", async () => {
   assert.match(result.stdout, /fixture stdout/);
 });
 
+test("redacts sensitive output before returning a capture", async () => {
+  const result = await captureCommand(
+    ["node", "-e", "console.log('API_TOKEN=secret-value'); console.error('Authorization: Bearer abc.def')"],
+    process.cwd(),
+    5000
+  );
+
+  assert.match(result.stdout, /API_TOKEN=\[REDACTED:env-secret\]/);
+  assert.doesNotMatch(result.stdout, /secret-value/);
+  assert.match(result.stderr, /\[REDACTED:authorization-header\]/);
+  assert.doesNotMatch(result.stderr, /abc\.def/);
+});
+
 test("represents a missing executable as a completed capture", async () => {
   const result = await captureCommand(
     ["definitely-not-a-real-command-crashcart-test"],
