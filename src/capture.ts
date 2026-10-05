@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { CapturedCommand } from "./types.js";
+import { redactText } from "./redact.js";
 
 const TERMINATION_GRACE_MS = 250;
 
@@ -36,8 +37,8 @@ export async function captureCommand(argv: string[], cwd: string, timeoutMs: num
         durationMs: finishedAtMs - startedAtMs,
         exitCode,
         signal,
-        stdout,
-        stderr
+        stdout: redactText(stdout).text,
+        stderr: redactText(stderr).text
       });
     };
 
