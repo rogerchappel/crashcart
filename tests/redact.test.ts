@@ -12,6 +12,23 @@ test("redacts env-like secrets and tokens", () => {
   assert.deepEqual(result.findings.map((finding) => finding.label).sort(), ["env-secret", "github-token"]);
 });
 
+test("redacts private-key blocks spanning multiple lines", () => {
+  const secret = "-----BEGIN RSA PRIVATE KEY-----\nline-one-secret\nline-two-secret\n-----END RSA PRIVATE KEY-----";
+  const result = redactText(`before\n${secret}\nafter`);
+  assert.equal(result.text.includes("line-one-secret"), false);
+  assert.equal(result.text.includes("line-two-secret"), false);
+  assert.deepEqual(result.findings, [{ label: "private-key-block", count: 1 }]);
+});
+
+test("redacts overlaps even when an earlier rule consumes the whole assignment", () => {
+  const secret = "ghp_abcdefghijklmnopqrstuvwxyz123456";
+  const result = redactText(`API_TOKEN=${secret}`);
+  assert.equal(result.text.includes(secret), false);
+  assert.deepEqual(result.findings.map(({ label, count }) => ({ label, count })), [
+    { label: "env-secret", count: 1 }
+  ]);
+});
+
 test("supports extra regex rules", () => {
   const result = redactText("customer id cust_12345", [{ label: "customer-id", pattern: /cust_\d+/g }]);
   assert.equal(result.text, "customer id [REDACTED:customer-id]");
