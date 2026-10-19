@@ -8,7 +8,7 @@ export interface RedactionRule {
 
 const defaultRules: RedactionRule[] = [
   { label: "authorization-header", pattern: /\bAuthorization:\s*(?:Bearer|Basic)\s+[^\s]+/gi },
-  { label: "env-secret", pattern: /\b[A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*[^\s]+/g },
+  { label: "env-secret", pattern: /\b[A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?|API_KEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*[^\s]+/g },
   { label: "github-token", pattern: /gh[pousr]_[A-Za-z0-9_]{20,}/g },
   { label: "npm-token", pattern: /npm_[A-Za-z0-9]{20,}/g },
   { label: "jwt", pattern: /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g },

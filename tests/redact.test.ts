@@ -12,6 +12,15 @@ test("redacts env-like secrets and tokens", () => {
   assert.deepEqual(result.findings.map((finding) => finding.label).sort(), ["env-secret", "github-token"]);
 });
 
+test("redacts singular and plural credential assignment keys", () => {
+  const result = redactText("CREDENTIAL=credential-secret CREDENTIALS=credentials-secret");
+  assert.equal(result.text.includes("credential-secret"), false);
+  assert.equal(result.text.includes("credentials-secret"), false);
+  assert.match(result.text, /CREDENTIAL=\[REDACTED:env-secret\]/);
+  assert.match(result.text, /CREDENTIALS=\[REDACTED:env-secret\]/);
+  assert.deepEqual(result.findings, [{ label: "env-secret", count: 2 }]);
+});
+
 test("redacts private-key blocks spanning multiple lines", () => {
   const secret = "-----BEGIN RSA PRIVATE KEY-----\nline-one-secret\nline-two-secret\n-----END RSA PRIVATE KEY-----";
   const result = redactText(`before\n${secret}\nafter`);
