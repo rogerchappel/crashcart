@@ -22,11 +22,10 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
-    "pretest": "npm run build",
     "test": "node --test dist/tests/*.test.js",
-    "smoke": "npm run build && (node dist/src/cli.js run --out .crashcart/smoke -- node fixtures/failing-command.js || test $? -eq 1) && node dist/src/cli.js inspect .crashcart/smoke/crashcart.json",
-    "package:smoke": "npm run build && node scripts/check-package.mjs",
-    "release:check": "npm test && npm run check && npm run build && npm run smoke && npm run package:smoke",
+    "smoke": "(node dist/src/cli.js run --out .crashcart/smoke -- node fixtures/failing-command.js || test $? -eq 1) && node dist/src/cli.js inspect .crashcart/smoke/crashcart.json",
+    "package:smoke": "node scripts/check-package.mjs",
+    "release:check": "npm run build && npm test && npm run check && npm run smoke && npm run package:smoke",
     "lint": "npm run check"
   },
   "keywords": [
