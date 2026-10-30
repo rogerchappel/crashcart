@@ -36,9 +36,17 @@ export function validateBundle(value: unknown): CrashcartBundle {
   stringArray(value.command.argv, "command.argv");
   string(value.command.display, "command.display");
   string(value.command.cwd, "command.cwd");
-  if (value.command.exitCode !== null) number(value.command.exitCode, "command.exitCode");
-  if (value.command.signal !== null) string(value.command.signal, "command.signal");
+  if (value.command.exitCode !== null) {
+    number(value.command.exitCode, "command.exitCode");
+    if (!Number.isInteger(value.command.exitCode)) throw new Error("command.exitCode must be an integer");
+  }
+  if (value.command.signal !== null) {
+    string(value.command.signal, "command.signal");
+    if (!/^SIG[A-Z0-9]+$/.test(value.command.signal)) throw new Error("command.signal must be a valid signal name");
+    if (value.command.exitCode !== null) throw new Error("command.signal requires a null exitCode");
+  }
   number(value.command.durationMs, "command.durationMs");
+  if (value.command.durationMs < 0) throw new Error("command.durationMs must be non-negative");
 
   record(value.environment, "environment");
   string(value.environment.platform, "environment.platform");
