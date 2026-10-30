@@ -91,3 +91,27 @@ test("keeps multibyte truncation within the byte cap", () => {
   assert.equal(result.truncated, true);
   assert.ok(Buffer.byteLength(result.text) <= 81);
 });
+
+import { validateBundle } from "../src/validate-bundle.js";
+
+test("validateBundle accepts normal captured command metadata and nulls", async () => {
+  const bundle = await createBundle({ ...captured, exitCode: null, signal: null }, {
+    outDir: ".crashcart/test", cwd: process.cwd(), maxBytes: 10000, timeoutMs: 1000
+  });
+  assert.equal(validateBundle(bundle).command.exitCode, null);
+  assert.equal(validateBundle(bundle).command.signal, null);
+});
+
+test("validateBundle rejects invalid command metadata", async () => {
+  const bundle = await createBundle(captured, {
+    outDir: ".crashcart/test", cwd: process.cwd(), maxBytes: 10000, timeoutMs: 1000
+  });
+  for (const [field, value] of [["durationMs", -1], ["exitCode", 1.5], ["signal", "not-a-signal"]] as const) {
+    const malformed = structuredClone(bundle);
+    (malformed.command as Record<string, unknown>)[field] = value;
+    assert.throws(() => validateBundle(malformed), /command\./);
+  }
+  const inconsistentSignal = structuredClone(bundle);
+  inconsistentSignal.command.signal = "SIGTERM";
+  assert.throws(() => validateBundle(inconsistentSignal), /command\.signal/);
+});
